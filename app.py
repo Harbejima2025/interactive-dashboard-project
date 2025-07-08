@@ -1,22 +1,31 @@
 # app.py
+
 import streamlit as st
 import pandas as pd
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 import plotly.express as px
 
-st.title("Interactive Dashboard Example")
+st.set_page_config(layout="wide")
+st.title("📊 Live Sales Dashboard from Google Sheets")
 
-# Load data
-df = pd.read_csv("data/sample_data.csv")
+# Authentication
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
+client = gspread.authorize(creds)
 
-# Sidebar filter
-selected_option = st.sidebar.selectbox("Select Category", df["category"].unique())
+# Load Sheet
+sheet = client.open("Sales_Data").sheet1  # Use your sheet name here
+data = sheet.get_all_records()
+df = pd.DataFrame(data)
 
-# Filtered data
-filtered_df = df[df["category"] == selected_option]
+# Interactive Chart
+st.sidebar.header("🔎 Filter")
+categories = df["Category"].unique().tolist()
+selected = st.sidebar.multiselect("Select Category", categories, default=categories)
 
-# Show chart
-fig = px.bar(filtered_df, x="subcategory", y="value", color="subcategory")
-st.plotly_chart(fig)
-
-# Show table
+filtered_df = df[df["Category"].isin(selected)]
 st.dataframe(filtered_df)
+
+fig = px.bar(filtered_df, x="Date", y="Sales", color="Category", title="Sales by Category")
+st.plotly_chart(fig, use_container_width=True)
